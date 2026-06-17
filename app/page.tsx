@@ -2,6 +2,56 @@
 
 import { useRef, useState } from "react";
 
+/**
+ * Tiny, dependency-free markdown renderer for the answer text.
+ * Handles the small subset the model produces: paragraphs, bullet lists,
+ * **bold**, and `code`. Escapes HTML first so content is safe to inject.
+ */
+function renderAnswer(md: string): string {
+  const escape = (s: string) =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  const inline = (s: string) =>
+    escape(s)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`(.+?)`/g, "<code>$1</code>");
+
+  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const html: string[] = [];
+  let inList = false;
+
+  const closeList = () => {
+    if (inList) {
+      html.push("</ul>");
+      inList = false;
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      closeList();
+      continue;
+    }
+    const bullet = line.match(/^[-*•]\s+(.*)$/);
+    if (bullet) {
+      if (!inList) {
+        html.push("<ul>");
+        inList = true;
+      }
+      html.push(`<li>${inline(bullet[1])}</li>`);
+    } else {
+      closeList();
+      html.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  closeList();
+  return html.join("");
+}
+
 interface Source {
   id: string;
   text: string;
@@ -62,7 +112,14 @@ const styles = `
 .q::before { content: "?"; font-family: var(--mono); color: var(--amber);
   border: 1px solid var(--amber-dim); border-radius: 5px; width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center; flex: 0 0 auto; font-size: 14px; }
-.a { margin: 12px 0 0 34px; color: var(--text); font-size: 15px; white-space: pre-wrap; }
+.a { margin: 12px 0 0 34px; color: var(--text); font-size: 15px; }
+.a p { margin: 0 0 10px; }
+.a p:last-child { margin-bottom: 0; }
+.a ul { margin: 6px 0 10px; padding-left: 20px; }
+.a li { margin: 4px 0; }
+.a strong { color: var(--text); font-weight: 600; }
+.a code { font-family: var(--mono); font-size: 13px; background: var(--panel-raised);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
 
 .evidence-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--text-faint); margin: 18px 0 10px 34px; }
@@ -229,7 +286,11 @@ export default function Home() {
           {thread.map((turn, i) => (
             <div className="turn" key={i}>
               <div className="q">{turn.question}</div>
-              <div className="a">{turn.answer}</div>
+              <div
+                className="a"
+                dangerouslySetInnerHTML={{ __html: renderAnswer(turn.answer) }}
+              />
+
               {turn.sources.length > 0 && (
                 <>
                   <div className="evidence-label">
