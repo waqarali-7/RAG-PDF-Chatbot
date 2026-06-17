@@ -129,4 +129,4 @@ MIT — use it, fork it, learn from it.
 ---
 
 Built by **Waqar Ali** — senior full-stack & AI automation engineer.
-[Portfolio](https://your-portfolio.com) · [Upwork](https://upwork.com/freelancers/your-profile) · [GitHub](https://github.com/waqarali-7)
+[Upwork](https://www.upwork.com/freelancers/waqarali7) · [GitHub](https://github.com/waqarali-7)
