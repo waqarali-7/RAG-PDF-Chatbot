@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "t-001",
+      "title": "Draft PRD: Anthropic provider support",
+      "description": "Read .codexa/features/2026-08-26-anthropic-provider-support/idea.md and produce the PRD.",
+      "type": "prd",
+      "status": "done",
+      "agent": "john",
+      "feature": "2026-08-26-anthropic-provider-support",
+      "acceptance": "PRD file exists with all required sections filled, open questions resolved or explicitly listed.",
+      "dependencies": [],
+      "artifacts": [
+        ".codexa/features/2026-08-26-anthropic-provider-support/prd.md"
+      ],
+      "notes": "",
+      "createdAt": "2026-08-26T19:42:15.961Z",
+      "updatedAt": "2026-08-26T20:05:05.573Z"
+    },
+    {
+      "id": "t-002",
+      "title": "Draft architecture: Anthropic provider support",
+      "description": "Read the PRD and produce the architecture doc.",
+      "type": "architecture",
+      "status": "todo",
+      "agent": "winston",
+      "feature": "2026-08-26-anthropic-provider-support",
+      "acceptance": "Architecture doc covers affected systems, data model, API surface, integration points.",
+      "dependencies": [
+        "t-001"
+      ],
+      "artifacts": [
+        ".codexa/features/2026-08-26-anthropic-provider-support/architecture.md"
+      ],
+      "notes": "",
+      "createdAt": "2026-08-26T19:42:15.961Z",
+      "updatedAt": "2026-08-26T19:42:15.961Z"
+    },
+    {
+      "id": "t-003",
+      "title": "Break into epics: Anthropic provider support",
+      "description": "Read PRD + architecture and produce epics.md (3–7 vertical slices).",
+      "type": "epic",
+      "status": "todo",
+      "agent": "john",
+      "feature": "2026-08-26-anthropic-provider-support",
+      "acceptance": "epics.md exists with 3–7 epics, each with goal and dependencies.",
+      "dependencies": [
+        "t-002"
+      ],
+      "artifacts": [
+        ".codexa/features/2026-08-26-anthropic-provider-support/epics.md"
+      ],
+      "notes": "",
+      "createdAt": "2026-08-26T19:42:15.962Z",
+      "updatedAt": "2026-08-26T19:42:15.962Z"
+    },
+    {
+      "id": "t-004",
+      "title": "Write stories: Anthropic provider support",
+      "description": "For each epic, write story files under stories/ with AC, code touchpoints, and test plan.",
+      "type": "story",
+      "status": "todo",
+      "agent": "john",
+      "feature": "2026-08-26-anthropic-provider-support",
+      "acceptance": "Every epic has at least one story file with testable acceptance criteria.",
+      "dependencies": [
+        "t-003"
+      ],
+      "artifacts": [
+        ".codexa/features/2026-08-26-anthropic-provider-support/stories"
+      ],
+      "notes": "",
+      "createdAt": "2026-08-26T19:42:15.962Z",
+      "updatedAt": "2026-08-26T19:42:15.962Z"
+    }
+  ]
+}

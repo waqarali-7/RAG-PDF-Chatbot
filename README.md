@@ -58,7 +58,7 @@ The anti-hallucination guarantee lives in two places: the model is given only th
 | Framework | Next.js 14 (App Router) | One codebase, API routes + UI, one-click deploy |
 | Language | TypeScript | Typed end-to-end, including the RAG engine |
 | Embeddings | OpenAI `text-embedding-3-small` | Cheap, fast, strong retrieval quality |
-| Generation | OpenAI `gpt-4o-mini` | Low-cost grounded answering |
+| Generation | OpenAI or Anthropic (configurable) | Low-cost grounded answering; operator chooses provider |
 | Vector store | In-memory (pluggable interface) | Zero external services for the demo |
 | PDF parsing | `pdf-parse` | Reliable text extraction |
 
@@ -66,7 +66,7 @@ The anti-hallucination guarantee lives in two places: the model is given only th
 
 ## Run it locally
 
-**Prerequisites:** Node.js 18+ and an OpenAI API key.
+**Prerequisites:** Node.js 18+ and an OpenAI API key (always required for embeddings). Optionally, an Anthropic API key if you want to use Claude for chat completions.
 
 ```bash
 git clone https://github.com/waqarali-7/docuchat-rag.git
@@ -74,7 +74,9 @@ cd docuchat-rag
 npm install
 
 cp .env.example .env.local
-# open .env.local and paste your OpenAI key
+# open .env.local and add your keys / provider config
+# OPENAI_API_KEY is always required (embeddings)
+# set LLM_PROVIDER=anthropic + ANTHROPIC_API_KEY to use Claude
 
 npm run dev
 ```
@@ -89,7 +91,11 @@ This deploys to **Vercel** in one click:
 
 1. Push the repo to your GitHub.
 2. Import it at [vercel.com/new](https://vercel.com/new).
-3. Add `OPENAI_API_KEY` as an environment variable.
+3. Add environment variables:
+   - `OPENAI_API_KEY` (always required — embeddings)
+   - `LLM_PROVIDER` — `openai` (default) or `anthropic`
+   - `ANTHROPIC_API_KEY` (required when provider is `anthropic`)
+   - `OPENAI_MODEL` / `ANTHROPIC_MODEL` (optional overrides)
 4. Deploy.
 
 > The demo's in-memory store resets on each cold start — fine for a showcase. For persistent multi-user use, back the `VectorStore` interface with a managed vector DB.

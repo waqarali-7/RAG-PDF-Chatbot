@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 /**
  * Core RAG engine.
@@ -17,7 +18,19 @@ import OpenAI from "openai";
  */
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
-const CHAT_MODEL = "gpt-4o-mini";
+
+const VALID_PROVIDERS = ["openai", "anthropic"] as const;
+type LLMProvider = (typeof VALID_PROVIDERS)[number];
+
+const SYSTEM_PROMPT =
+  "You answer questions using only the provided source passages. " +
+  "Write for a normal reader: clear, friendly, and easy to follow. " +
+  "Start with a direct answer in plain language. If there are several points, " +
+  "use short markdown bullet points. Keep sentences short and avoid jargon. " +
+  "Do NOT put citation markers like [Source 1] in your answer — the sources " +
+  "are shown separately below your response. " +
+  "If the passages do not contain the answer, say so plainly in one friendly " +
+  "sentence — do not guess or use outside knowledge.";
 
 export interface Chunk {
   id: string;
@@ -49,6 +62,101 @@ export interface VectorStore {
   size(): number;
 }
 
+// ---------------------------------------------------------------------------
+// Chat provider abstraction (chat completions only — embeddings stay OpenAI)
+// ---------------------------------------------------------------------------
+
+interface ChatProvider {
+  complete(systemPrompt: string, userMessage: string): Promise<string>;
+}
+
+class OpenAIChatProvider implements ChatProvider {
+  private client: OpenAI;
+  private model: string;
+
+  constructor(apiKey: string) {
+    this.client = new OpenAI({ apiKey, timeout: 60_000 });
+    this.model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  }
+
+  async complete(systemPrompt: string, userMessage: string): Promise<string> {
+    const completion = await this.client.chat.completions.create({
+      model: this.model,
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    });
+    return (
+      completion.choices[0]?.message?.content?.trim() ?? ""
+    );
+  }
+}
+
+class AnthropicChatProvider implements ChatProvider {
+  private client: Anthropic;
+  private model: string;
+
+  constructor(apiKey: string) {
+    this.client = new Anthropic({ apiKey, timeout: 60_000 });
+    this.model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
+  }
+
+  async complete(systemPrompt: string, userMessage: string): Promise<string> {
+    const response = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 1024,
+      temperature: 0.2,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+    });
+    const block = response.content.find((b) => b.type === "text");
+    return block ? block.text.trim() : "";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Config validation & provider resolution
+// ---------------------------------------------------------------------------
+
+function validateConfig(): LLMProvider {
+  const raw = process.env.LLM_PROVIDER ?? "openai";
+  if (!(VALID_PROVIDERS as readonly string[]).includes(raw)) {
+    throw new Error(
+      `Invalid LLM_PROVIDER "${raw}". Valid options: ${VALID_PROVIDERS.join(", ")}.`
+    );
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error(
+      "OPENAI_API_KEY is not set. It is always required (embeddings depend on it). " +
+        "Copy .env.example to .env.local and add your key."
+    );
+  }
+  if (raw === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      'ANTHROPIC_API_KEY is not set. It is required when LLM_PROVIDER is "anthropic".'
+    );
+  }
+  return raw as LLMProvider;
+}
+
+let _chatProvider: ChatProvider | null = null;
+
+function getChatProvider(): ChatProvider {
+  if (_chatProvider) return _chatProvider;
+  const provider = validateConfig();
+  _chatProvider =
+    provider === "anthropic"
+      ? new AnthropicChatProvider(process.env.ANTHROPIC_API_KEY!)
+      : new OpenAIChatProvider(process.env.OPENAI_API_KEY!);
+  return _chatProvider;
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI client for embeddings (always required, regardless of provider)
+// ---------------------------------------------------------------------------
+
 function getClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -56,7 +164,7 @@ function getClient(): OpenAI {
       "OPENAI_API_KEY is not set. Copy .env.example to .env.local and add your key."
     );
   }
-  return new OpenAI({ apiKey });
+  return new OpenAI({ apiKey, timeout: 60_000 });
 }
 
 /** Cosine similarity between two equal-length vectors. */
@@ -181,34 +289,14 @@ export async function answerQuestion(
     .map((c, i) => `[Source ${i + 1} — ${c.source}, passage ${c.position}]\n${c.text}`)
     .join("\n\n");
 
-  const client = getClient();
-  const completion = await client.chat.completions.create({
-    model: CHAT_MODEL,
-    temperature: 0.2,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You answer questions using only the provided source passages. " +
-          "Write for a normal reader: clear, friendly, and easy to follow. " +
-          "Start with a direct answer in plain language. If there are several points, " +
-          "use short markdown bullet points. Keep sentences short and avoid jargon. " +
-          "Do NOT put citation markers like [Source 1] in your answer — the sources " +
-          "are shown separately below your response. " +
-          "If the passages do not contain the answer, say so plainly in one friendly " +
-          "sentence — do not guess or use outside knowledge.",
-      },
-      {
-        role: "user",
-        content: `Source passages:\n\n${context}\n\nQuestion: ${question}`,
-      },
-    ],
-  });
+  const provider = getChatProvider();
+  const text = await provider.complete(
+    SYSTEM_PROMPT,
+    `Source passages:\n\n${context}\n\nQuestion: ${question}`
+  );
 
   return {
-    answer:
-      completion.choices[0]?.message?.content?.trim() ??
-      "I couldn't generate an answer.",
+    answer: text || "I couldn't generate an answer.",
     sources: retrieved,
   };
 }
