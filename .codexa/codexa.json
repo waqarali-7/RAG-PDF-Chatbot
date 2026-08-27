@@ -1,0 +1,16 @@
+{
+  "version": "0.1.0",
+  "initialized": "2026-08-26T19:41:56.688Z",
+  "profile": {
+    "name": "docuchat-rag",
+    "type": "web-app",
+    "framework": "Next.js"
+  },
+  "agents": [
+    "mary",
+    "john",
+    "winston",
+    "amelia",
+    "sally"
+  ]
+}
